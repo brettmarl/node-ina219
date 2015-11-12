@@ -1,0 +1,16 @@
+{
+  "name": "ina219",
+  "version": "0.1.0",
+  "description": "Node.js INA219 driver for Adafruit INA219 High Side DC Current Sensor",
+  "main": "ina219.js",
+  "author": "Brett Marl",
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/brettmarl/node-ina219.git"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "i2c":"0.2.0"
+  },
+  "engine": "node >= 0.12.0"
+}
