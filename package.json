@@ -1,6 +1,6 @@
 {
   "name": "ina219",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Node.js INA219 driver for Adafruit INA219 High Side DC Current Sensor",
   "main": "ina219.js",
   "author": "Brett Marl",
@@ -12,5 +12,15 @@
   "dependencies": {
     "i2c":"0.2.0"
   },
+  "keywords": [
+  "raspberry",
+  "pi",
+  "adafruit",
+  "voltage",
+  "current",
+  "monitor",
+  "ina219",
+  "i2c"
+],
   "engine": "node >= 0.12.0"
 }
