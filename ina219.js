@@ -1,12 +1,28 @@
 "use strict";
-
 /*
  * Node driver for Adafruit INA219 ported from https://github.com/adafruit/Adafruit_INA219
  */
-
 var i2c = require('../i2c');
 
+/**
+ * Ina219 is the main class exported from the Node module
+ * @class Ina219
+ */
 var Ina219 = function() {}
+
+
+/**
+ * Callback for standard oncomplete
+ *
+ * @callback onCompleteCallback
+ */
+
+/**
+ * Callback for returning a single value
+ *
+ * @callback onHaveValueCallback
+ * @param {int} value - value returned by async operation 
+ */
 
 // ===========================================================================
 //   I2C ADDRESS/BITS
@@ -92,6 +108,11 @@ var INA219_REG_CALIBRATION                 	= 0x05
 
 
 
+/**
+  * Called to initilize the INA219 board, you should calibrate it after this.
+  * @param {string} address - Address you want to use. Defaults to INA219_ADDRESS
+  * @param {string} device - Device to connect to. Defaults to "/dev/i2c-1"
+  */
 Ina219.prototype.init = function (address, device) {
 
 	// defaults
@@ -109,11 +130,21 @@ Ina219.prototype.init = function (address, device) {
 
 
 
+/**
+  * Enabled debug logging to console.log
+  * @param {bool} enable - True to enable, False to disable
+  */
 Ina219.prototype.enableLogging  = function (enable) {
 
 	this.loggingEnabled = enable;
 }
 
+/**
+  * Reads a 16 bit value over I2C
+  * @param {integer} register - Register to read from (One of INA219_REG_*)
+  * @param {integer} value - Value to be written
+  * @param {writeRegisterCallback} callback - Callback to be invoked when complete
+  */
 Ina219.prototype.writeRegister  = function (register, value, callback) {
 
 	var bytes = [(value >> 8) & 0xFF, value & 0xFF];
@@ -122,11 +153,11 @@ Ina219.prototype.writeRegister  = function (register, value, callback) {
 }
 
 
-/**************************************************************************/
-/*! 
-	@brief  Reads a 16 bit values over I2C
-*/
-/**************************************************************************/
+/**
+  * Reads a 16 bit value over I2C
+  * @param {integer} register - Register to read from (One of INA219_REG_*)
+  * @param {onHaveValueCallback} callback - Callback to be invoked when complete
+  */
 Ina219.prototype.readRegister  = function (register, callback) {
 
 	this.wire.readBytes(register, 1, function (err, res)
@@ -137,18 +168,14 @@ Ina219.prototype.readRegister  = function (register, callback) {
 	
 }
 
-
-/**************************************************************************/
-/*! 
-    @brief  Configures to INA219 to be able to measure up to 32V and 1A
-            of current.  Each unit of current corresponds to 40uA, and each
-            unit of power corresponds to 800mW. Counter overflow occurs at
-            1.3A.
-			
-    @note   These calculations assume a 0.1 ohm resistor is present
-*/
-/**************************************************************************/
-
+/**
+  *  Configures to INA219 to be able to measure up to 32V and 1A of current.
+  *  Each unit of current corresponds to 40uA, and each unit of power corresponds
+  *  to 800mW. Counter overflow occurs at 1.3A.
+  *  Note: These calculations assume a 0.1 ohm resistor is present
+  *
+  * @param {onCompleteCallback} callback - Callback to be invoked when complete
+  */
 Ina219.prototype.calibrate32V1A  = function (callback) {
 
 	this.log("calibrate32V1A");
@@ -243,13 +270,20 @@ Ina219.prototype.calibrate32V1A  = function (callback) {
 
 }
 
+/**
+  * Logs a string to the console if logging enabled
+  * @param {string} s - String to log
+  */
 Ina219.prototype.log  = function (s) {
 	
 	if (this.loggingEnabled)
 		console.log(s);
 }
 
-
+/**
+  * Reads the raw bus voltage 
+  * @param {onHaveValueCallback} callback - Callback to be invoked when complete. 
+  */
 Ina219.prototype.getBusVoltage_raw  = function (callback) {
 
 	this.log("getBusVoltage_raw");
@@ -266,6 +300,10 @@ Ina219.prototype.getBusVoltage_raw  = function (callback) {
 }
 
 
+/**
+  * Reads the raw shunt voltage 
+  * @param {onHaveValueCallback} callback - Callback to be invoked when complete. 
+  */
 Ina219.prototype.getShuntVoltage_raw  = function (callback) {
 
 	this.log("getShuntVoltage_raw");
@@ -277,6 +315,10 @@ Ina219.prototype.getShuntVoltage_raw  = function (callback) {
     });
 }
 
+/**
+  * Reads the raw current value 
+  * @param {onHaveValueCallback} callback - Callback to be invoked when complete. 
+  */
 Ina219.prototype.getCurrent_raw  = function (callback) {
 
 	this.log("getCurrent_raw");
@@ -298,11 +340,10 @@ Ina219.prototype.getCurrent_raw  = function (callback) {
 }
 
 
-/**************************************************************************/
-/*! 
-    @brief  Gets the bus voltage in volts
-*/
-/**************************************************************************/
+/**
+  *  Gets the bus voltage in volts 
+  * @param {onHaveValueCallback} callback - Callback to be invoked when complete. 
+  */
 Ina219.prototype.getBusVoltage_V  = function (callback) {
 
 	this.getBusVoltage_raw(function(result) {
@@ -313,11 +354,10 @@ Ina219.prototype.getBusVoltage_V  = function (callback) {
 
 
 
-/**************************************************************************/
-/*! 
-    @brief  Gets the shunt voltage in mV (so +-327mV)
-*/
-/**************************************************************************/
+/**
+  * Gets the shunt voltage in mV (so +-327mV) 
+  * @param {onHaveValueCallback} callback - Callback to be invoked when complete. 
+  */
 Ina219.prototype.getShuntVoltage_mV  = function (callback) {
 
 	this.getShuntVoltage_raw(function(result) {
@@ -325,12 +365,11 @@ Ina219.prototype.getShuntVoltage_mV  = function (callback) {
 	});
 }
 
-/**************************************************************************/
-/*! 
-    @brief  Gets the current value in mA, taking into account the
-            config settings and current LSB
-*/
-/**************************************************************************/
+/**
+  * Gets the current value in mA, taking into account the config settings and current LSB
+  * @param {onHaveValueCallback} callback - Callback to be invoked when complete. 
+  */
+
 Ina219.prototype.getCurrent_mA  = function (callback) {
 
 	var $this = this;
