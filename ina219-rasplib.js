@@ -1,8 +1,13 @@
 "use strict";
 /*
- * Node driver for Adafruit INA219 ported from https://github.com/adafruit/Adafruit_INA219
+ * Node driver for Adafruit INA219 ported from https://github.com/adafruit/Adafruit_INA219.
+ * Uses the raspi-i2c package for I2C IO. https://github.com/nebrius/raspi-i2c
  */
-var i2c = require('../i2c-bus');	// https://github.com/fivdi/i2c-bus
+// try to get to run against a better I2C library with node4.
+
+var raspi = require('../raspi');
+var I2C = require('../raspi-i2c').I2C;
+
 
 /**
  * Ina219 is the main class exported from the Node module
@@ -118,7 +123,7 @@ var INA219_REG_CALIBRATION                 	= 0x05
   * @param {string} address - Address you want to use. Defaults to INA219_ADDRESS
   * @param {string} device - Device to connect to. Defaults to "/dev/i2c-1"
   */
-Ina219.prototype.init = function (address, device) {
+Ina219.prototype.init = function (callback, address, device) {
 
 	// defaults
 	address = typeof address !== 'undefined' ? address : INA219_ADDRESS;
@@ -129,10 +134,13 @@ Ina219.prototype.init = function (address, device) {
 	this.powerDivider_mW = 0;
 	this.calValue = 0;
 	this.address = address;
-	
-	this.wire = i2c.openSync(1);	// 1 == /dev/ic2-1
-	
-	//this.wire = new i2c(address, { device: device }); // point to your i2c address, debug provides REPL interface
+	var $this = this;
+		
+	raspi.init(function() {
+  		$this.wire = new I2C();
+		callback();
+	});	 
+
 }
 
 
@@ -154,23 +162,17 @@ Ina219.prototype.enableLogging  = function (enable) {
   */
 Ina219.prototype.writeRegister  = function (register, value, callback) {
 
-	var bytes = new Buffer(2);
-
-	bytes[0] = (value >> 8) & 0xFF;
-	bytes[1] = value & 0xFF
+	var buffer = new Buffer(2);
+	
+	buffer[0] = (value >> 8) & 0xFF;
+	buffer[1] = value & 0xFF;
+	
+	//var bytes = [(value >> 8) & 0xFF, value & 0xFF];
 		 
-	this.wire.writeI2cBlockSync(this.address, register, 2, bytes);
-	callback(null);		 
+	this.wire.write(this.address, register, buffer, callback);		 
 }
 
-var FIX_TWOS_BUG = true;
 
-function twosToInt(val, len)
-{
-	if (val & (1<< len -1))
-		return val - (1>>len);
-	else return val;
-}
 /**
   * Reads a 16 bit value over I2C
   * @param {integer} register - Register to read from (One of INA219_REG_*)
@@ -178,29 +180,12 @@ function twosToInt(val, len)
   */
 Ina219.prototype.readRegister  = function (register, callback) {
 
-	var res = new Buffer(2);
-	
-	this.wire.readI2cBlockSync(this.address, register, 2, res);
-	
-	var value;
-	
-	// Shift values to create properly formed integer
-if (FIX_TWOS_BUG)
-{
-	if (res[0] >> 7 == 1)
+	this.wire.read(this.address, register, 1, function (err, data)
 	{
-		value = res[0] * 256 + res[1];
-		value = twosToInt(value);
-	}
-	else
-		value = res[0] << 8 | res[1];
-}
-else
-value = res[0] << 8 | res[1];
+		// Shift values to create properly formed integer
+		callback(data[0] << 8);
+	});
 	
-	this.log("::readRegister => [" + res[0] + ", " + res[1] + "]");
-		
-	callback(value);
 }
 
 /**
@@ -285,108 +270,7 @@ Ina219.prototype.calibrate32V1A  = function (callback) {
   	this.powerDivider_mW = 1;         // Power LSB = 800�W per bit
   
 	var $this = this;
-	this.writeRegister(INA219_REG_CALIBRATION, this.calValue, function(err) {
-
-		$this.log("INA219_REG_CALIBRATION done: " + err);
-				
-		var config =    INA219_CONFIG_BVOLTAGERANGE_32V |
-						INA219_CONFIG_GAIN_8_320MV |
-						INA219_CONFIG_BADCRES_12BIT |
-						INA219_CONFIG_SADCRES_12BIT_1S_532US |
-						INA219_CONFIG_MODE_SANDBVOLT_CONTINUOUS;
-
-		$this.writeRegister(INA219_REG_CONFIG, config, function(err)  {
-			
-			$this.log("INA219_REG_CONFIG done: " + config + ": " + err);
-			callback();
-		});
-	});
-
-}
-
-
-/**
-  *  Configures to INA219 to be able to measure up to 32V and 2A of current.
-  *  Each unit of current corresponds to 40uA, and each unit of power corresponds
-  *  to 800mW. Counter overflow occurs at 1.3A.
-  *  Note: These calculations assume a 0.1 ohm resistor is present
-  *
-  * @param {onCompleteCallback} callback - Callback to be invoked when complete
-  */
-
-Ina219.prototype.calibrate32V2A  = function (callback) {
-
-	this.log("calibrate32V2A");
-		
-	// By default we use a pretty huge range for the input voltage,
-	// which probably isn't the most appropriate choice for system
-	// that don't use a lot of power.  But all of the calculations
-	// are shown below if you want to change the settings.  You will
-	// also need to change any relevant register settings, such as
-	// setting the VBUS_MAX to 16V instead of 32V, etc.
-	
-	// VBUS_MAX = 32V		(Assumes 32V, can also be set to 16V)
-	// VSHUNT_MAX = 0.32	(Assumes Gain 8, 320mV, can also be 0.16, 0.08, 0.04)
-	// RSHUNT = 0.1			(Resistor value in ohms)
-	
-	// 1. Determine max possible current
-	// MaxPossible_I = VSHUNT_MAX / RSHUNT
-	// MaxPossible_I = 3.2A
-	
-	// 2. Determine max expected current
-  // MaxExpected_I = 2.0A
-	
-  // 3. Calculate possible range of LSBs (Min = 15-bit, Max = 12-bit)
-  // MinimumLSB = MaxExpected_I/32767
-  // MinimumLSB = 0.000061              (61uA per bit)
-  // MaximumLSB = MaxExpected_I/4096
-  // MaximumLSB = 0,000488              (488uA per bit)
-  
-  // 4. Choose an LSB between the min and max values
-  //    (Preferrably a roundish number close to MinLSB)
-  // CurrentLSB = 0.0001 (100uA per bit)
-  
-  // 5. Compute the calibration register
-  // Cal = trunc (0.04096 / (Current_LSB * RSHUNT))
-  // Cal = 4096 (0x1000)
-
-	this.calValue = 4096;
-
-	 // 6. Calculate the power LSB
-  // PowerLSB = 20 * CurrentLSB
-  // PowerLSB = 0.002 (2mW per bit)
-  
-  // 7. Compute the maximum current and shunt voltage values before overflow
-  //
-  // Max_Current = Current_LSB * 32767
-  // Max_Current = 3.2767A before overflow
-  //
-  // If Max_Current > Max_Possible_I then
-  //    Max_Current_Before_Overflow = MaxPossible_I
-  // Else
-  //    Max_Current_Before_Overflow = Max_Current
-  // End If
-  //
-  // Max_ShuntVoltage = Max_Current_Before_Overflow * RSHUNT
-  // Max_ShuntVoltage = 0.32V
-  //
-  // If Max_ShuntVoltage >= VSHUNT_MAX
-  //    Max_ShuntVoltage_Before_Overflow = VSHUNT_MAX
-  // Else
-  //    Max_ShuntVoltage_Before_Overflow = Max_ShuntVoltage
-  // End If
-  
-  // 8. Compute the Maximum Power
-  // MaximumPower = Max_Current_Before_Overflow * VBUS_MAX
-  // MaximumPower = 3.2 * 32V
-  // MaximumPower = 102.4W
-	
-	// Set multipliers to convert raw current/power values
-	this.currentDivider_mA = 10;      // Current LSB = 40uA per bit (1000/40 = 25)
-  	this.powerDivider_mW = 2;         // Power LSB = 800�W per bit
-  
-	var $this = this;
-	this.writeRegister(INA219_REG_CALIBRATION, this.calValue, function(err) {
+	this.writeRegister(INA219_REG_CALIBRATION, this.calValue, function(err, bytesWritten) {
 
 		$this.log("INA219_REG_CALIBRATION done: " + err);
 
@@ -464,7 +348,7 @@ Ina219.prototype.getCurrent_raw  = function (callback) {
 	// not be available ... avoid this by always setting a cal
 	// value even if it's an unfortunate extra step
 	var	$this = this;
-	this.writeRegister(INA219_REG_CALIBRATION, this.calValue, function(err) {
+	this.writeRegister(INA219_REG_CALIBRATION, this.calValue, function(err, bytesWritten) {
 			
 		// Now we can safely read the CURRENT register!
 		$this.readRegister(INA219_REG_CURRENT, function (value) {

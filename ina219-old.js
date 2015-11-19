@@ -2,7 +2,7 @@
 /*
  * Node driver for Adafruit INA219 ported from https://github.com/adafruit/Adafruit_INA219
  */
-var i2c = require('../i2c-bus');	// https://github.com/fivdi/i2c-bus
+var i2c = require('../i2c');
 
 /**
  * Ina219 is the main class exported from the Node module
@@ -130,9 +130,7 @@ Ina219.prototype.init = function (address, device) {
 	this.calValue = 0;
 	this.address = address;
 	
-	this.wire = i2c.openSync(1);	// 1 == /dev/ic2-1
-	
-	//this.wire = new i2c(address, { device: device }); // point to your i2c address, debug provides REPL interface
+	this.wire = new i2c(address, { device: device }); // point to your i2c address, debug provides REPL interface
 }
 
 
@@ -154,13 +152,9 @@ Ina219.prototype.enableLogging  = function (enable) {
   */
 Ina219.prototype.writeRegister  = function (register, value, callback) {
 
-	var bytes = new Buffer(2);
-
-	bytes[0] = (value >> 8) & 0xFF;
-	bytes[1] = value & 0xFF
+	var bytes = [(value >> 8) & 0xFF, value & 0xFF];
 		 
-	this.wire.writeI2cBlockSync(this.address, register, 2, bytes);
-	callback(null);		 
+	this.wire.writeBytes(register, bytes, callback);		 
 }
 
 var FIX_TWOS_BUG = true;
@@ -178,29 +172,30 @@ function twosToInt(val, len)
   */
 Ina219.prototype.readRegister  = function (register, callback) {
 
-	var res = new Buffer(2);
-	
-	this.wire.readI2cBlockSync(this.address, register, 2, res);
-	
-	var value;
-	
-	// Shift values to create properly formed integer
+	this.wire.readBytes(register, 2, function (err, res)
+	{
+		var value;
+		
 if (FIX_TWOS_BUG)
 {
-	if (res[0] >> 7 == 1)
-	{
-		value = res[0] * 256 + res[1];
-		value = twosToInt(value);
-	}
-	else
-		value = res[0] << 8 | res[1];
+		if (res[0] >> 7 == 1)
+		{
+			value = res[0] * 256 + res[1];
+			value = twosToInt(value);
+		}
+		else
+			value = res[0] << 8 | res[1];
 }
 else
-value = res[0] << 8 | res[1];
-	
-	this.log("::readRegister => [" + res[0] + ", " + res[1] + "]");
+	value = res[0] << 8 | res[1];
 		
-	callback(value);
+		// Shift values to create properly formed integer
+		this.log("::readRegister => [" + res[0] + ", " + res[1] + "]");
+		 //var value = res[0] << 8 | res[1];
+		 
+		callback(value);
+	});
+	
 }
 
 /**

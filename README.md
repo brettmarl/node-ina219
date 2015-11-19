@@ -30,5 +30,3 @@ $ npm install ina219
   });
 ```
 
-# Compat Issues
-As of Nov-2015 the i2c library that this depends on does not run on Node 4 - so you need to use an older version.
