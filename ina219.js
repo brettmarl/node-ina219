@@ -179,26 +179,22 @@ function twosToInt(val, len)
 Ina219.prototype.readRegister  = function (register, callback) {
 
 	var res = new Buffer(2);
-	
+	var value;
+		
 	this.wire.readI2cBlockSync(this.address, register, 2, res);
 	
-	var value;
-	
-	// Shift values to create properly formed integer
-if (FIX_TWOS_BUG)
-{
-	if (res[0] >> 7 == 1)
+	// register contains 16-bit number in twos-compliment format for negatives
+	// first we combine the two bytes into a 16-bit integer
+	// and then do the twos-compliment math
+	value = ((res[0] & 0xff) << 8) | (res[1] & 0xff);	 
+	value = value & 0xffff;	// make sure just 16-bits
+	if (0x8000 & value)
 	{
-		value = res[0] * 256 + res[1];
-		value = twosToInt(value);
+		// when high-bit is set, convert to compliment
+		value = -1 * (0x010000 - value);
 	}
-	else
-		value = res[0] << 8 | res[1];
-}
-else
-value = res[0] << 8 | res[1];
-	
-	this.log("::readRegister => [" + res[0] + ", " + res[1] + "]");
+
+	this.log("::readRegister => [" + res[0] + ", " + res[1] + "] ");
 		
 	callback(value);
 }
