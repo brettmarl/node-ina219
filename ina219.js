@@ -186,18 +186,18 @@ Ina219.prototype.readRegister  = function (register, callback) {
 	var value;
 	
 	// Shift values to create properly formed integer
-if (FIX_TWOS_BUG)
-{
-	if (res[0] >> 7 == 1)
+	if (FIX_TWOS_BUG)
 	{
-		value = res[0] * 256 + res[1];
-		value = twosToInt(value, 16);
+		if (res[0] >> 7 == 1)
+		{
+			value = res[0] * 256 + res[1];
+			value = twosToInt(value, 16);
+		}
+		else
+			value = res[0] << 8 | res[1];
 	}
 	else
 		value = res[0] << 8 | res[1];
-}
-else
-value = res[0] << 8 | res[1];
 	
 	this.log("::readRegister => [" + res[0] + ", " + res[1] + "]");
 		
