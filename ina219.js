@@ -114,25 +114,22 @@ var INA219_REG_CALIBRATION                 	= 0x05
 
 /**
   * Called to initilize the INA219 board, you should calibrate it after this.
-  * @param {onCompleteCallback} callback - Callback to be invoked when complete
   * @param {string} address - Address you want to use. Defaults to INA219_ADDRESS
-  * @param {string} device - Device to connect to. Defaults to "/dev/i2c-1"
+  * @param {integer} busNumber - the number of the I2C bus/adapter to open, 0 for /dev/i2c-0, 1 for /dev/i2c-1, (See github.com/fivdi/i2c-bus)
   */
-Ina219.prototype.init = function (address, device) {
+Ina219.prototype.init = function (address, busNumber) {
 
 	// defaults
 	address = typeof address !== 'undefined' ? address : INA219_ADDRESS;
-	device = typeof device !== 'undefined' ? device : '/dev/i2c-1';
+	busNumber = typeof busNumber !== 'undefined' ? busNumber : 1;
 	
-	this.log("init:: " + address + " | " + device)
+	this.log("init:: " + address + " | " + busNumber)
 	this.currentDivider_mA = 0;
 	this.powerDivider_mW = 0;
 	this.calValue = 0;
 	this.address = address;
 	
-	this.wire = i2c.openSync(1);	// 1 == /dev/ic2-1
-	
-	//this.wire = new i2c(address, { device: device }); // point to your i2c address, debug provides REPL interface
+	this.wire = i2c.openSync(busNumber);
 }
 
 
