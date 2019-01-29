@@ -160,15 +160,6 @@ Ina219.prototype.writeRegister  = function (register, value, callback) {
 	callback(null);		 
 }
 
-var FIX_TWOS_BUG = true;
-
-function twosToInt(val, len)
-{
-	if (val & (1<< len -1))
-		val =  val - (1>>len);
-	
-	return val;
-}
 /**
   * Reads a 16 bit value over I2C
   * @param {integer} register - Register to read from (One of INA219_REG_*)
@@ -180,21 +171,7 @@ Ina219.prototype.readRegister  = function (register, callback) {
 	
 	this.wire.readI2cBlockSync(this.address, register, 2, res);
 	
-	var value;
-	
-	// Shift values to create properly formed integer
-	if (FIX_TWOS_BUG)
-	{
-		if (res[0] >> 7 == 1)
-		{
-			value = res[0] * 256 + res[1];
-			value = twosToInt(value, 16);
-		}
-		else
-			value = res[0] << 8 | res[1];
-	}
-	else
-		value = res[0] << 8 | res[1];
+	var value = res.readInt16BE();
 	
 	this.log("::readRegister => [" + res[0] + ", " + res[1] + "]");
 		
