@@ -10,18 +10,18 @@
   },
   "license": "MIT",
   "dependencies": {
-    "i2c-bus":"^1.1.1"
+    "i2c-bus": "^4.0.10"
   },
   "keywords": [
-  "raspberry",
-  "pi",
-  "adafruit",
-  "voltage",
-  "current",
-  "monitor",
-  "ina219",
-  "i2c-bus",
-  "i2c"
-],
+    "raspberry",
+    "pi",
+    "adafruit",
+    "voltage",
+    "current",
+    "monitor",
+    "ina219",
+    "i2c-bus",
+    "i2c"
+  ],
   "engine": "node >= 0.12.0"
 }

@@ -151,7 +151,7 @@ Ina219.prototype.enableLogging  = function (enable) {
   */
 Ina219.prototype.writeRegister  = function (register, value, callback) {
 
-	var bytes = new Buffer(2);
+	var bytes = Buffer.alloc(2);
 
 	bytes[0] = (value >> 8) & 0xFF;
 	bytes[1] = value & 0xFF
@@ -167,7 +167,7 @@ Ina219.prototype.writeRegister  = function (register, value, callback) {
   */
 Ina219.prototype.readRegister  = function (register, callback) {
 
-	var res = new Buffer(2);
+	var res = Buffer.alloc(2);
 	
 	this.wire.readI2cBlockSync(this.address, register, 2, res);
 	
