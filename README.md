@@ -1,6 +1,7 @@
 # node-ina219
-Node.js Driver for Adafruit INA219
+Node.js Driver for Adafruit INA219. 
 
+This is a direct port to NodeJS from the C code created by Adafuit and posted at https://github.com/adafruit/Adafruit_INA219
 
 # Install
 
